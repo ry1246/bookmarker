@@ -66,30 +66,37 @@ function AuthForm({ onAuthed }: { onAuthed: () => void }) {
 function BookmarkList() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
   const [url, setUrl] = useState('')
+  const [tags, setTags] = useState('')
+  const [filterTag, setFilterTag] = useState('')
 
-  const load = async () => {
+  const load = async (tag?: string) => {
     const token = getToken()
     const res = await client.bookmarks.$get(
-      {},
+      { query: tag ? { tag } : {} },
       { headers: { Authorization: `Bearer ${token}` } }
     )
     if (res.ok) setBookmarks(await res.json())
   }
   
   useEffect(() => {
-    load()
-  }, [])
+    // load() sets state after an await, not synchronously — this is the
+    // standard "fetch on mount / on dependency change" pattern from the
+    // React docs. react-hooks/set-state-in-effect can't see across the
+    // async boundary and flags it anyway.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load(filterTag || undefined)
+  }, [filterTag])
 
   const addBookmark = async (e: React.FormEvent) => {
     e.preventDefault()
     const token = getToken()
     const res = await client.bookmarks.$post(
-      { json: { url } },
+      { json: { url, tags: tags || undefined } },
       { headers: { Authorization: `Bearer ${token}` } }
     )
     if (res.ok) {
       setUrl('')
-      load()
+      load(filterTag || undefined)
     }
   }
 
@@ -99,7 +106,7 @@ function BookmarkList() {
       { param: { id: String(id) } },
       { headers: { Authorization: `Bearer ${token}` } }
     )
-    load()
+    load(filterTag || undefined)
   }
 
   return (
@@ -111,12 +118,31 @@ function BookmarkList() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
+        <input
+          type="text"
+          placeholder="tags (comma separated)"
+          value={tags}
+          onChange={(e) => setTags(e.target.value)}
+        />
         <button type="submit">Add</button>
       </form>
+      <input
+        type="text"
+        placeholder="filter by tag"
+        value={filterTag}
+        onChange={(e) => setFilterTag(e.target.value)}
+      />
       <ul>
         {bookmarks.map((b) => (
           <li key={b.id}>
             <a href={b.url}>{b.title ?? b.url}</a>
+            {b.tags && (
+              <span>
+                {b.tags.split(',').map((t) => t.trim()).map((t) => (
+                  <span key={t} onClick={() => setFilterTag(t)}> #{t}</span>
+                ))}
+              </span>
+            )}
             <button onClick={() => removeBookmark(b.id)}>Delete</button>
           </li>
         ))}
