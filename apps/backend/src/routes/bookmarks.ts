@@ -1,9 +1,22 @@
 import { Hono } from 'hono'
+import { zValidator } from '@hono/zod-validator'
+import { z } from 'zod'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/client.js'
 import { bookmarks } from '../db/schema.js'
 
 type JwtPayload = { sub: number }
+
+const createBookmarkSchema = z.object({
+  url: z.string().url(),
+  title: z.string().optional(),
+  tags: z.string().optional(),
+})
+
+const patchBookmarkSchema = z.object({
+  title: z.string().nullable().optional(),
+  tags: z.string().nullable().optional(),
+})
 
 const bookmarksRoute = new Hono()
   .get('/', async (c) => {
@@ -22,11 +35,9 @@ const bookmarksRoute = new Hono()
 
     return c.json(filtered)
   })
-  .post('/', async (c) => {
+  .post('/', zValidator('json', createBookmarkSchema), async (c) => {
     const payload = c.get('jwtPayload') as JwtPayload
-    const { url, title, tags } = await c.req.json()
-
-    if (!url) return c.json({ error: 'url is required' }, 400)
+    const { url, title, tags } = c.req.valid('json')
 
     const [bookmark] = await db
       .insert(bookmarks)
@@ -35,10 +46,10 @@ const bookmarksRoute = new Hono()
 
     return c.json(bookmark, 201)
   })
-  .patch('/:id', async (c) => {
+  .patch('/:id', zValidator('json', patchBookmarkSchema), async (c) => {
     const payload = c.get('jwtPayload') as JwtPayload
     const id = Number(c.req.param('id'))
-    const { title, tags } = await c.req.json()
+    const { title, tags } = c.req.valid('json')
 
     const existing = await db
       .select()

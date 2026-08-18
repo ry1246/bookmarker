@@ -68,6 +68,9 @@ function BookmarkList() {
   const [url, setUrl] = useState('')
   const [tags, setTags] = useState('')
   const [filterTag, setFilterTag] = useState('')
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editTags, setEditTags] = useState('')
 
   const load = async (tag?: string) => {
     const token = getToken()
@@ -79,10 +82,6 @@ function BookmarkList() {
   }
   
   useEffect(() => {
-    // load() sets state after an await, not synchronously — this is the
-    // standard "fetch on mount / on dependency change" pattern from the
-    // React docs. react-hooks/set-state-in-effect can't see across the
-    // async boundary and flags it anyway.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load(filterTag || undefined)
   }, [filterTag])
@@ -107,6 +106,29 @@ function BookmarkList() {
       { headers: { Authorization: `Bearer ${token}` } }
     )
     load(filterTag || undefined)
+  }
+
+  const startEdit = (b: Bookmark) => {
+    setEditingId(b.id)
+    setEditTitle(b.title ?? '')
+    setEditTags(b.tags ?? '')
+  }
+
+  const cancelEdit = () => setEditingId(null)
+
+  const saveEdit = async (id: number) => {
+    const token = getToken()
+    const res = await client.bookmarks[':id'].$patch(
+      {
+        param: { id: String(id) },
+        json: { title: editTitle || null, tags: editTags || null },
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    if (res.ok) {
+      setEditingId(null)
+      load(filterTag || undefined)
+    }
   }
 
   return (
@@ -135,15 +157,37 @@ function BookmarkList() {
       <ul>
         {bookmarks.map((b) => (
           <li key={b.id}>
-            <a href={b.url}>{b.title ?? b.url}</a>
-            {b.tags && (
+            {editingId === b.id ? (
               <span>
-                {b.tags.split(',').map((t) => t.trim()).map((t) => (
-                  <span key={t} onClick={() => setFilterTag(t)}> #{t}</span>
-                ))}
+                <input
+                  type="text"
+                  placeholder="title"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                />
+                <input
+                  type="text"
+                  placeholder="tags (comma separated)"
+                  value={editTags}
+                  onChange={(e) => setEditTags(e.target.value)}
+                />
+                <button onClick={() => saveEdit(b.id)}>Save</button>
+                <button onClick={cancelEdit}>Cancel</button>
               </span>
-            )}
-            <button onClick={() => removeBookmark(b.id)}>Delete</button>
+            ) : (
+            <>
+              <a href={b.url}>{b.title ?? b.url}</a>
+              {b.tags && (
+                <span>
+                  {b.tags.split(',').map((t) => t.trim()).map((t) => (
+                    <span key={t} onClick={() => setFilterTag(t)}> #{t}</span>
+                  ))}
+                </span>
+              )}
+              <button onClick={() => startEdit(b)}>Edit</button>
+              <button onClick={() => removeBookmark(b.id)}>Delete</button>
+            </>
+          )}
           </li>
         ))}
       </ul>
