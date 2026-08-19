@@ -1,13 +1,20 @@
 import { Hono } from 'hono'
 import { sign } from 'hono/jwt'
+import { zValidator } from '@hono/zod-validator'
+import { z } from 'zod'
 import bcrypt from 'bcrypt'
 import { db } from '../db/client.js'
 import { users } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
 
+const credentialSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+})
+
 const auth = new Hono()
-  .post('/signup', async (c) => {
-    const { email, password } = await c.req.json()
+  .post('/signup', zValidator('json', credentialSchema), async (c) => {
+    const { email, password } = c.req.valid('json')
 
     const existing = await db.select().from(users).where(eq(users.email, email)).get()
     if (existing) return c.json({ error: 'email already registered' }, 409)
@@ -20,8 +27,8 @@ const auth = new Hono()
 
     return c.json({ id: user.id, email: user.email }, 201)
   })
-  .post('/login', async (c) => {
-    const { email, password } = await c.req.json()
+  .post('/login', zValidator('json', credentialSchema), async (c) => {
+    const { email, password } = c.req.valid('json')
 
     const user = await db.select().from(users).where(eq(users.email, email)).get()
     if (!user) return c.json({ error: 'invalid credentials' }, 401)

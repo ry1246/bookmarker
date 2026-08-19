@@ -23,6 +23,7 @@ const bookmarksRoute = new Hono()
   .get('/', async (c) => {
     const payload = c.get('jwtPayload') as JwtPayload
     const tag = c.req.query('tag')
+    const q = c.req.query('q')?.trim().toLowerCase()
 
     const rows = await db
       .select()
@@ -30,9 +31,11 @@ const bookmarksRoute = new Hono()
       .where(eq(bookmarks.userId, payload.sub))
       .all()
 
-    const filtered = tag
-      ? rows.filter((b) => b.tags?.split(',').map((t) => t.trim()).includes(tag))
-      : rows
+    const filtered = rows
+      .filter((b) => !tag || b.tags?.split(',').map((t) => t.trim()).includes(tag))
+      .filter(
+        (b) => !q || b.title?.toLowerCase().includes(q) || b.url.toLowerCase().includes(q)
+      )
 
     return c.json(filtered)
   })
