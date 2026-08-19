@@ -71,11 +71,12 @@ function BookmarkList() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editTags, setEditTags] = useState('')
+  const [search, setSearch] = useState('')
 
-  const load = async (tag?: string) => {
+  const load = async (tag?: string, q?: string) => {
     const token = getToken()
     const res = await client.bookmarks.$get(
-      { query: tag ? { tag } : {} },
+      { query: { ...(tag ? { tag } : {}), ...(q ? { q } : {}) } },
       { headers: { Authorization: `Bearer ${token}` } }
     )
     if (res.ok) setBookmarks(await res.json())
@@ -83,8 +84,8 @@ function BookmarkList() {
   
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    load(filterTag || undefined)
-  }, [filterTag])
+    load(filterTag || undefined, search || undefined)
+  }, [filterTag, search])
 
   const addBookmark = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -153,6 +154,12 @@ function BookmarkList() {
         placeholder="filter by tag"
         value={filterTag}
         onChange={(e) => setFilterTag(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="search title or url"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
       />
       <ul>
         {bookmarks.map((b) => (
