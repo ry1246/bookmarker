@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../db/client.js'
 import { bookmarks } from '../db/schema.js'
+import { fetchPageTitle } from '../lib/fetchTitle.js'
 
 type JwtPayload = { sub: number }
 
@@ -39,9 +40,11 @@ const bookmarksRoute = new Hono()
     const payload = c.get('jwtPayload') as JwtPayload
     const { url, title, tags } = c.req.valid('json')
 
+    const resolvedTitle = title ?? (await fetchPageTitle(url))
+
     const [bookmark] = await db
       .insert(bookmarks)
-      .values({ userId: payload.sub, url, title, tags, createdAt: new Date() })
+      .values({ userId: payload.sub, url, title: resolvedTitle, tags, createdAt: new Date() })
       .returning()
 
     return c.json(bookmark, 201)
