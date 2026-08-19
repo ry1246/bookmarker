@@ -20,14 +20,23 @@ function AuthForm({ onAuthed }: { onAuthed: () => void }) {
     setError(null)
 
     if (mode === 'signup') {
-      const res = await client.auth.signup.$post({ json: { email, password } })
-      if (!res.ok) {
+      const signupRes = await client.auth.signup.$post({ json: { email, password } })
+      if (!signupRes.ok) {
         setError('signup failed')
         return
       }
-      setMode('login')
+      const loginRes = await client.auth.login.$post({ json: { email, password } })
+      if (!loginRes.ok) {
+        setError('signup succeeded, please log in')
+        setMode('login')
+        return
+      }
+      const { token } = await loginRes.json()
+      setToken(token)
+      onAuthed()
       return
     }
+
 
     const res = await client.auth.login.$post({ json: { email, password } })
     if (!res.ok) {
