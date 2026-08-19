@@ -1,14 +1,6 @@
 import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
 import 'dotenv/config'
-import auth from './routes/auth.js'
-import bookmarksRoute from './routes/bookmarks.js'
-import { authMiddleWare } from './middleware/auth.js'
-
-const app = new Hono()
-  .route('/auth', auth)
-  .use('/bookmarks/*', authMiddleWare)
-  .route('/bookmarks', bookmarksRoute)
+import { app } from './app.js'
 
 serve(
   {
